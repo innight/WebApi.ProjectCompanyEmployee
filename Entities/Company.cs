@@ -29,5 +29,10 @@ namespace WebApi.ProjectCompanyEmployee.Entities
 
         public ICollection<Employee> Employees { get; set; }
               = new List<Employee>();
+
+        public Company(string name)
+        {
+            Name = name;
+        }
     }
 }

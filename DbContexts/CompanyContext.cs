@@ -18,7 +18,7 @@ namespace WebApi.ProjectCompanyEmployee.DbContexts
         {
             // Seed data for Company
             modelBuilder.Entity<Company>().HasData(
-                new Company
+                new Company("1")
                 {
                     Id = 1,
                     Name = "Dummy Company 1",
@@ -28,7 +28,7 @@ namespace WebApi.ProjectCompanyEmployee.DbContexts
                     Industry = "Tech",
                     LogoUrl = "https://www.dummycompany1.com/logo.png"
                 },
-                new Company
+                new Company("2")
                 {
                     Id = 2,
                     Name = "Dummy Company 2",

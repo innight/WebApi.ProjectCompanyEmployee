@@ -6,11 +6,14 @@ namespace WebApi.ProjectCompanyEmployee.Services
     public interface ICompanyRepository
     {
         Task<IEnumerable<Company>> GetAllCompaniesAsync();
-        Task<Company> GetCompanyAsync(int id);
+        Task<(IEnumerable<Company>, PaginationMetadata)> GetAllCompaniesAsync(
+            string? name, string? searchQuery, int pageNumber, int pageSize);
+        Task<Company?> GetCompanyAsync(int id, bool includeEmployees);
         Task AddCompany(Company company);
         void UpdateCompany(Company company);
-        void DeleteCompany(int companyId);
-        Task<bool> CompanyExistsAsync(int companyId);
+        void DeleteCompany(Company company);
+        Task<bool> CheckIfCompanyExistsByIdAsync(int companyId);
+        Task<bool> CheckIfCompanyExistsByNameAsync(string companyName);
         Task<bool> SaveChangesAsync();
     }
 }
