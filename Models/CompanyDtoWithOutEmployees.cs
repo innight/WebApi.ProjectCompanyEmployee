@@ -8,7 +8,7 @@ namespace WebApi.ProjectCompanyEmployee.Models
         public int ID { get; set; }
 
         public string Name { get; set; } = string.Empty;
-
+        public string? Description { get; set; }
         public string ?Website { get; set; }
 
         public DateTime Founded { get; set; }

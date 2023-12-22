@@ -13,27 +13,51 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
     [ApiController]
     public class CompaniesController : ControllerBase
     {
-
-        private readonly ICompanyRepository _companyRepository;
         private readonly IMapper _mapper;
         const int maxCompaniesPageSize = 20;
 
-        public CompaniesController(ICompanyRepository companyRepository,
-            IMapper mapper, CompanyContext context)
+        private readonly IServiceCompany _serviceCompany;
+
+        public CompaniesController(IServiceCompany serviceCompany, IMapper mapper)
         {
-            _companyRepository = companyRepository ??
-                throw new ArgumentNullException(nameof(companyRepository));
+            _serviceCompany = serviceCompany ??
+                throw new ArgumentNullException(nameof(serviceCompany));
+
             _mapper = mapper ??
                 throw new ArgumentNullException(nameof(mapper));
         }
 
-        // GET: api/Companies
+        //// GET: api/Companies
+        //[HttpGet]
+        //public async Task<ActionResult<IEnumerable<CompanyDtoWithOutEmployees>>> GetCompanyAsync()
+        //{
+        //    try
+        //    {
+        //        IEnumerable<Company> companyEntities = await _companyRepository.GetAllCompaniesAsync();
+        //        return Ok(_mapper.Map<IEnumerable<CompanyDtoWithOutEmployees>>(companyEntities));
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new { error = "Failed to get companies." + ex.Message });
+        //    }
+        //}
+
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CompanyDtoWithOutEmployees>>> GetCompanies()
+        public async Task<ActionResult<IEnumerable<CompanyDtoWithOutEmployees>>> GetCompanyAsync(
+            string? name, string? searchQuery, int pageNumber = 1, int pageSize = 10)
         {
             try
             {
-                IEnumerable<Company> companyEntities = await _companyRepository.GetAllCompaniesAsync();
+                if (pageSize > maxCompaniesPageSize)
+                {
+                    pageSize = maxCompaniesPageSize;
+                }
+
+                var (companyEntities, paginationMetadata) = await _serviceCompany.GetAllCompaniesAsync(name, searchQuery, pageNumber, pageSize);
+
+                Response.Headers.Add("X-Pagination",
+                    JsonSerializer.Serialize(paginationMetadata));
+
                 return Ok(_mapper.Map<IEnumerable<CompanyDtoWithOutEmployees>>(companyEntities));
             }
             catch (Exception ex)
@@ -42,26 +66,6 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
             }
         }
 
-        // POR ACABAR
-        //[HttpGet]
-        //public async Task<ActionResult<IEnumerable<CompanyDtoWithOutEmployees>>> GetCompanies(
-        //    string? name, string? searchQuery, int pageNumber = 1, int pageSize = 10)
-        //{
-        //    if (pageSize > maxCompaniesPageSize)
-        //    {
-        //        pageSize = maxCompaniesPageSize;
-        //    }
-
-        //    var (companyEntities, paginationMetadata) = await _companyRepository
-        //        .GetCompanyAsync(name, searchQuery, pageNumber, pageSize);
-
-        //    Response.Headers.Add("X-Pagination",
-        //        JsonSerializer.Serialize(paginationMetadata));
-
-        //    return Ok(_mapper.Map<IEnumerable<CompanyDtoWithOutEmployees>>(companyEntities));
-        //}
-
-
         // GET: api/Companies/5
         [HttpGet("{id}", Name = "GetCompany")]
         public async Task<ActionResult<Company>> GetCompany(
@@ -69,7 +73,7 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
         {
             try
             {
-                var company = await _companyRepository.GetCompanyAsync(id, includeEmployees);
+                var company = await _serviceCompany.GetCompanyAsync(id, includeEmployees);
 
                 if (company is null)
                 {
@@ -94,12 +98,12 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
         [HttpPut("{companyId}")]
         public async Task<IActionResult> PutCompany(int companyId, CompanyForUpdateDto company)
         {
-            if (!await _companyRepository.CheckIfCompanyExistsByIdAsync(companyId))
+            if (!await _serviceCompany.CheckIfCompanyExistsByIdAsync(companyId))
             {
                 return NotFound();
             }
 
-            var companyEntity = await _companyRepository
+            var companyEntity = await _serviceCompany
                 .GetCompanyAsync(companyId, false);
             if (companyEntity == null)
             {
@@ -108,7 +112,7 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
 
             _mapper.Map(company, companyEntity);
 
-            await _companyRepository.SaveChangesAsync();
+            await _serviceCompany.SaveChangesAsync();
 
             return NoContent();
         }
@@ -119,19 +123,19 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
         public async Task<ActionResult<CompanyDtoWithOutEmployees>> PostCompany(
             CompanyForCreationDto company)
         {
-            var finalCompany = _mapper.Map<Entities.Company>(company);
+            var finalCompany = _mapper.Map<Company>(company);
 
             // Verifica se a empresa já existe
-            var companyExists = await _companyRepository.CheckIfCompanyExistsByNameAsync(company.Name);
+            var companyExists = await _serviceCompany.CheckIfCompanyExistsByNameAsync(company.Name);
 
             if (companyExists)
             {
                 return BadRequest("A empresa já existe.");
             }
 
-            await _companyRepository.AddCompany(finalCompany);    
+            await _serviceCompany.AddCompany(finalCompany);    
 
-            await _companyRepository.SaveChangesAsync();
+            await _serviceCompany.SaveChangesAsync();
 
             // Obtenha o ID gerado automaticamente após salvar as alterações
             var generatedId = finalCompany.Id;
@@ -144,19 +148,19 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
         public async Task<IActionResult> DeleteCompany(int companyId)
         {
             //return NoContent();
-            if (!await _companyRepository.CheckIfCompanyExistsByIdAsync(companyId))
+            if (!await _serviceCompany.CheckIfCompanyExistsByIdAsync(companyId))
             {
                 return NotFound();
             }
 
-            var company = await _companyRepository.GetCompanyAsync(companyId, false);
+            var company = await _serviceCompany.GetCompanyAsync(companyId, false);
             if (company == null)
             {
                 return NotFound();
             }
 
-            _companyRepository.DeleteCompany(company);
-            await _companyRepository.SaveChangesAsync();
+            _serviceCompany.DeleteCompany(company);
+            await _serviceCompany.SaveChangesAsync();
 
             return NoContent();
         }
@@ -164,12 +168,12 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
         [HttpPatch("{companyId}")]
         public async Task<ActionResult> PatchCompany(int companyId, JsonPatchDocument<CompanyForUpdateDto> patchDoc)
         {
-            if (!await _companyRepository.CheckIfCompanyExistsByIdAsync(companyId))
+            if (!await _serviceCompany.CheckIfCompanyExistsByIdAsync(companyId))
             {
                 return NotFound();
             }
 
-            var companyEntity = await _companyRepository
+            var companyEntity = await _serviceCompany
                 .GetCompanyAsync(companyId, false);
             if (companyEntity == null)
             {
@@ -193,7 +197,7 @@ namespace WebApi.ProjectCompanyEmployee.Controllers
             }
 
             _mapper.Map(companyToPatch, companyEntity);
-            await _companyRepository.SaveChangesAsync();
+            await _serviceCompany.SaveChangesAsync();
 
             return NoContent();
         }

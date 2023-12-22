@@ -23,6 +23,7 @@ builder.Services.AddDbContext<CompanyContext>(
         builder.Configuration["ConnectionStrings:CompanyEmployeeDBConnectionString"]));
 
 builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
+builder.Services.AddScoped<IServiceCompany, ServiceCompany>();
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
